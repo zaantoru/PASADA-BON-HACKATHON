@@ -2,6 +2,9 @@ import { useState } from 'react'
 import type { ChangeEvent, ComponentProps, ReactNode, SubmitEventHandler } from 'react'
 import logo from '../../assets/logo/logo.svg'
 import { AuthHeroArt } from '../../components/common/AuthHeroArt'
+import { psgcPaths } from '../../service/api/psgc'
+import type { PsgcItem } from '../../service/api/psgc'
+import { usePsgcList } from '../../utils/usePsgcList'
 
 /* ----------------------------- Icons ----------------------------- */
 
@@ -113,6 +116,43 @@ function Field({ label, id, icon, trailing, required, ...inputProps }: FieldProp
   )
 }
 
+/* ----------------------------- SelectField ----------------------------- */
+
+interface SelectFieldProps extends Omit<ComponentProps<'select'>, 'children'> {
+  label: string
+  options: PsgcItem[]
+  placeholder: string
+}
+
+function SelectField({ label, id, options, placeholder, required, disabled, ...selectProps }: SelectFieldProps) {
+  const empty = selectProps.value === ''
+  return (
+    <div className="min-w-0">
+      <label htmlFor={id} className="mb-1 block text-xs font-semibold text-ink">
+        {label}
+        {required && <span className="text-royal"> *</span>}
+      </label>
+      <div className={`${inputWrapperClass} ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}>
+        <select
+          id={id}
+          required={required}
+          disabled={disabled}
+          className={`${inputClass} appearance-none truncate ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${empty ? 'text-navy/40' : ''}`}
+          {...selectProps}
+        >
+          <option value="">{placeholder}</option>
+          {options.map((option) => (
+            <option key={option.code} value={option.code} className="text-ink">
+              {option.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDownIcon className="pointer-events-none h-4 w-4 shrink-0" />
+      </div>
+    </div>
+  )
+}
+
 /* ----------------------------- Wizard data ----------------------------- */
 
 interface FormValues {
@@ -123,12 +163,27 @@ interface FormValues {
   lastName: string
   birthDate: string
   mobile: string
-  city: string
-  barangay: string
+  regionCode: string
+  provinceCode: string
+  cityCode: string
+  barangayCode: string
+  street: string
   acceptedTerms: boolean
 }
 
-type TextKey = Exclude<keyof FormValues, 'acceptedTerms'>
+type TextKey =
+  | 'email'
+  | 'password'
+  | 'confirmPassword'
+  | 'firstName'
+  | 'lastName'
+  | 'birthDate'
+  | 'mobile'
+  | 'street'
+
+// Ordered from the top of the hierarchy down. Changing one clears everything after it.
+const LOCATION_KEYS = ['regionCode', 'provinceCode', 'cityCode', 'barangayCode'] as const
+type LocationKey = (typeof LOCATION_KEYS)[number]
 
 const INITIAL_VALUES: FormValues = {
   email: '',
@@ -138,14 +193,20 @@ const INITIAL_VALUES: FormValues = {
   lastName: '',
   birthDate: '',
   mobile: '',
-  city: '',
-  barangay: '',
+  regionCode: '',
+  provinceCode: '',
+  cityCode: '',
+  barangayCode: '',
+  street: '',
   acceptedTerms: false,
 }
+
+const nameOf = (items: PsgcItem[], code: string) => items.find((item) => item.code === code)?.name ?? ''
 
 const STEPS = [
   { label: 'Account', title: 'Create your account', subtitle: 'Start with your sign-in details.' },
   { label: 'Profile', title: 'Tell us about you', subtitle: 'A few details to set up your profile.' },
+  { label: 'Address', title: 'Where do you live?', subtitle: 'Choose from the lists, then add your street.' },
   { label: 'Terms', title: 'Terms and agreement', subtitle: 'Please read and accept to create your account.' },
 ] as const
 
@@ -251,6 +312,42 @@ export default function Register() {
   const score = passwordScore(values.password)
   const today = new Date().toISOString().slice(0, 10)
 
+  // Each list depends on the selection above it.
+  const regions = usePsgcList(psgcPaths.regions)
+  const provinces = usePsgcList(values.regionCode ? psgcPaths.provinces(values.regionCode) : null)
+  // A region whose province list is empty (for example NCR) lists its cities directly.
+  const regionHasNoProvinces =
+    values.regionCode !== '' && !provinces.loading && !provinces.failed && provinces.items.length === 0
+  const cities = usePsgcList(
+    regionHasNoProvinces
+      ? psgcPaths.regionCities(values.regionCode)
+      : values.provinceCode
+        ? psgcPaths.provinceCities(values.provinceCode)
+        : null,
+  )
+  const barangays = usePsgcList(values.cityCode ? psgcPaths.barangays(values.cityCode) : null)
+
+  const locationLists = [regions, provinces, cities, barangays]
+  const locationFailed = locationLists.some((list) => list.failed)
+
+  const selectLocation = (key: LocationKey) => (event: ChangeEvent<HTMLSelectElement>) => {
+    const { value } = event.target
+    setValues((prev) => {
+      const next = { ...prev, [key]: value }
+      for (const lowerKey of LOCATION_KEYS.slice(LOCATION_KEYS.indexOf(key) + 1)) {
+        next[lowerKey] = ''
+      }
+      return next
+    })
+  }
+
+  const listPlaceholder = (
+    list: { loading: boolean; failed: boolean },
+    ready: boolean,
+    waitingFor: string,
+    action: string,
+  ) => (!ready ? waitingFor : list.loading ? 'Loading...' : list.failed ? 'Could not load' : action)
+
   const bind = (key: TextKey) => ({
     value: values[key],
     onChange: (event: ChangeEvent<HTMLInputElement>) => {
@@ -282,6 +379,13 @@ export default function Register() {
       email: values.email,
       firstName: values.firstName,
       lastName: values.lastName,
+      address: {
+        region: nameOf(regions.items, values.regionCode),
+        province: nameOf(provinces.items, values.provinceCode),
+        city: nameOf(cities.items, values.cityCode),
+        barangay: nameOf(barangays.items, values.barangayCode),
+        street: values.street,
+      },
     })
   }
 
@@ -432,30 +536,95 @@ export default function Register() {
                       {...bind('mobile')}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <Field
-                      id="city"
-                      name="city"
-                      label="City / Municipality"
-                      autoComplete="address-level2"
-                      placeholder="Quezon City"
-                      required
-                      {...bind('city')}
-                    />
-                    <Field
-                      id="barangay"
-                      name="barangay"
-                      label="Barangay"
-                      autoComplete="address-level3"
-                      placeholder="Batasan Hills"
-                      required
-                      {...bind('barangay')}
-                    />
-                  </div>
                 </>
               )}
 
               {step === 2 && (
+                <>
+                  <SelectField
+                    id="region"
+                    name="region"
+                    label="Region"
+                    required
+                    disabled={regions.loading || regions.failed}
+                    options={regions.items}
+                    placeholder={listPlaceholder(regions, true, '', 'Select region')}
+                    value={values.regionCode}
+                    onChange={selectLocation('regionCode')}
+                  />
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <SelectField
+                      id="province"
+                      name="province"
+                      label="Province"
+                      required={!regionHasNoProvinces}
+                      disabled={!values.regionCode || provinces.loading || regionHasNoProvinces}
+                      options={provinces.items}
+                      placeholder={
+                        regionHasNoProvinces
+                          ? 'Not applicable'
+                          : listPlaceholder(provinces, values.regionCode !== '', 'Select region first', 'Select province')
+                      }
+                      value={values.provinceCode}
+                      onChange={selectLocation('provinceCode')}
+                    />
+                    <SelectField
+                      id="city"
+                      name="city"
+                      label="City / Municipality"
+                      required
+                      disabled={cities.items.length === 0}
+                      options={cities.items}
+                      placeholder={listPlaceholder(
+                        cities,
+                        regionHasNoProvinces || values.provinceCode !== '',
+                        values.regionCode ? 'Select province first' : 'Select region first',
+                        'Select city',
+                      )}
+                      value={values.cityCode}
+                      onChange={selectLocation('cityCode')}
+                    />
+                  </div>
+
+                  <SelectField
+                    id="barangay"
+                    name="barangay"
+                    label="Barangay"
+                    required
+                    disabled={barangays.items.length === 0}
+                    options={barangays.items}
+                    placeholder={listPlaceholder(barangays, values.cityCode !== '', 'Select city first', 'Select barangay')}
+                    value={values.barangayCode}
+                    onChange={selectLocation('barangayCode')}
+                  />
+
+                  <Field
+                    id="street"
+                    name="street"
+                    label="Street / House no."
+                    autoComplete="address-line1"
+                    placeholder="123 Rizal Street"
+                    required
+                    {...bind('street')}
+                  />
+
+                  {locationFailed && (
+                    <p role="alert" className="text-xs text-red-600">
+                      Could not load the location lists.{' '}
+                      <button
+                        type="button"
+                        onClick={() => locationLists.forEach((list) => list.failed && list.retry())}
+                        className="font-medium underline"
+                      >
+                        Try again
+                      </button>
+                    </p>
+                  )}
+                </>
+              )}
+
+              {step === 3 && (
                 <>
                   <div
                     role="region"
