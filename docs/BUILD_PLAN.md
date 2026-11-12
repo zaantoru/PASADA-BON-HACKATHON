@@ -1,6 +1,6 @@
 # PASADA: LIGTAS — module plan
 
-Updated 12 November 2026. This replaces the earlier MySQL/device-cookie architecture. The screenshot supplies the module requirements; the repeated “public or public” is interpreted as **public or private**. No existing application code was present when this plan was made.
+Updated 13 November 2026. This replaces the earlier MySQL/device-cookie architecture. The screenshot supplies the module requirements; the repeated “public or public” is interpreted as **public or private**. The React UI and Express route scaffold now exist; see [DEVELOPMENT.md](DEVELOPMENT.md) for current paths and implementation status.
 
 ## What we are building
 
@@ -67,9 +67,9 @@ A mobile web app for Filipino animal-bite patients and caregivers to record an i
 ### Shared foundation — Ed, with integration by everyone
 
 - Supabase PostgreSQL is the single database. Do not create parallel MySQL tables.
-- Supabase Auth supplies identity; no custom passwords or redundant profile table is needed yet. Use recoverable email sign-in for the pilot. Optional anonymous sign-in can help a demo, but losing that session loses access unless upgraded.
+- Supabase Auth supplies identity; `profiles` stores display information and notification preferences, not passwords. Use recoverable email sign-in for the pilot. Optional anonymous sign-in can help a demo, but losing that session loses access unless upgraded.
 - Browser: public/publishable Supabase key + the signed-in user's session; RLS enforces private access. Never put a secret/service-role key or Lumen credentials in the browser.
-- PHP is the server-side Lumen relay on the existing XAMPP stack. Verify the caller and incident ownership; do not trust a browser-supplied `user_id`. Prefer the user's token for database operations so RLS still applies.
+- Express is the server-side Lumen relay. Verify the caller with `requireAuth` and constrain private service-role queries to the verified user's ID, including incident ownership. Do not trust a browser-supplied `user_id`; the service role bypasses RLS.
 - Share one Supabase client and the existing page/layout style; use one Leaflet setup for the two map screens. No microservices or heavy framework is required.
 
 ## Database relationships

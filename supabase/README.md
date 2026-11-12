@@ -8,6 +8,14 @@ Imported into this project on **12 November 2026** through the Supabase SQL Edit
 
 ## Import
 
+The follow-up [`202611130001_profiles_notifications.sql`](migrations/202611130001_profiles_notifications.sql)
+was also applied to the hosted project on **13 November 2026**, with 14 hosted
+catalog/privilege checks passing. It adds private profiles, signup/backfill,
+and owner-bound notification logs. Its SQL is restored here for fresh database
+setup. **Do not rerun either migration on the configured hosted project.** On a
+fresh project, run both files once in timestamp order, then run the rollback-based
+schema checks. The final schema has eight application tables with RLS enabled.
+
 1. Open the intended project and select **SQL Editor → New query**.
 2. Paste all of [`migrations/202611120001_ligtas.sql`](migrations/202611120001_ligtas.sql) and run it once as the project database administrator. It creates six application tables, RLS policies, two read RPCs, validation/invalidation triggers and one private Storage bucket.
 3. Verify the six tables in Table Editor and the private `treatment-cards` bucket in Storage. Existing tables/buckets with the same names cause the transaction to fail instead of being overwritten. If that happens, inspect the existing schema before adapting this migration; do not drop existing tables to force it through.

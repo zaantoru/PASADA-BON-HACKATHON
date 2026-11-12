@@ -1,4 +1,4 @@
--- Run as postgres AFTER the migration, preferably in a disposable database.
+-- Run as postgres AFTER all migrations, preferably in a disposable database.
 -- All fixtures are synthetic and rolled back. No external test extension needed.
 begin;
 
@@ -200,15 +200,62 @@ end;
 $$;
 reset role;
 
+-- Profiles exist for old and new accounts; notification ownership is enforced even for the service role.
+do $$
+begin
+  if exists (select 1 from auth.users u left join public.profiles p on p.id = u.id where p.id is null) then
+    raise exception 'Profile signup/backfill failed';
+  end if;
+  if has_function_privilege('anon', 'public.ligtas_create_profile()', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.ligtas_create_profile()', 'EXECUTE')
+     or has_table_privilege('anon', 'public.profiles', 'SELECT')
+     or has_table_privilege('anon', 'public.notifications', 'SELECT')
+     or has_table_privilege('authenticated', 'public.notifications', 'INSERT,UPDATE,DELETE') then
+    raise exception 'Profile/notification privileges too broad';
+  end if;
+end;
+$$;
+set local role service_role;
+insert into public.notifications(user_id, visit_id, channel, scheduled_for)
+values (current_setting('ligtas.test_user_1')::uuid, current_setting('ligtas.test_visit')::uuid, 'sms', current_date);
+do $$
+begin
+  begin
+    insert into public.notifications(user_id, visit_id, channel, scheduled_for)
+    values (current_setting('ligtas.test_user_2')::uuid, current_setting('ligtas.test_visit')::uuid, 'email', current_date);
+    raise exception 'Cross-owner notification accepted';
+  exception when foreign_key_violation then null;
+  end;
+  begin
+    insert into public.notifications(user_id, visit_id, channel, scheduled_for)
+    values (current_setting('ligtas.test_user_1')::uuid, current_setting('ligtas.test_visit')::uuid, 'sms', current_date);
+    raise exception 'Duplicate visit/channel log accepted';
+  exception when unique_violation then null;
+  end;
+end;
+$$;
+reset role;
+set local role authenticated;
+do $$
+begin
+  if exists (select 1 from public.profiles where id = current_setting('ligtas.test_user_1')::uuid)
+     or exists (select 1 from public.notifications where visit_id = current_setting('ligtas.test_visit')::uuid) then
+    raise exception 'Another account can read profiles or delivery logs';
+  end if;
+end;
+$$;
+reset role;
 delete from public.incidents where id = current_setting('ligtas.test_incident')::uuid;
 do $$
 begin
   if exists (select 1 from public.treatment_documents where id = current_setting('ligtas.test_document')::uuid)
-     or exists (select 1 from public.treatment_visits where id = current_setting('ligtas.test_visit')::uuid) then
+     or exists (select 1 from public.treatment_visits where id = current_setting('ligtas.test_visit')::uuid)
+     or exists (select 1 from public.notifications where visit_id = current_setting('ligtas.test_visit')::uuid) then
     raise exception 'Incident deletion did not cascade';
   end if;
   if exists (select 1 from pg_class where oid in ('public.incidents'::regclass, 'public.treatment_documents'::regclass,
-    'public.treatment_visits'::regclass, 'public.facilities'::regclass, 'public.hotspot_areas'::regclass, 'public.facility_reviews'::regclass) and not relrowsecurity) then
+    'public.treatment_visits'::regclass, 'public.facilities'::regclass, 'public.hotspot_areas'::regclass, 'public.facility_reviews'::regclass,
+    'public.profiles'::regclass, 'public.notifications'::regclass) and not relrowsecurity) then
     raise exception 'Table missing RLS';
   end if;
   if not exists (select 1 from storage.buckets where id = 'treatment-cards' and not public and file_size_limit = 10485760) then
@@ -217,4 +264,4 @@ begin
 end;
 $$;
 rollback;
-select 'PASS: ownership, parent links, corrections, moderation, aggregate privacy, cascade, bucket configuration' as result;
+select 'PASS: ownership, parent links, corrections, moderation, aggregate privacy, cascade, bucket configuration, profiles, notifications' as result;
