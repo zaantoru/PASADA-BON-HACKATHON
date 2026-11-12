@@ -128,7 +128,7 @@ function GoogleIcon(props: IconProps) {
   )
 }
 
-function Logo() {
+export function Logo() {
   return (
     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-cornflower/20 ring-4 ring-cornflower/10">
       <svg viewBox="0 0 32 32" className="h-7 w-7" aria-hidden="true">

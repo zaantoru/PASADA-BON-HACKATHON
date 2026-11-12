@@ -1,8 +1,223 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@plugin "daisyui" {
+  themes: false;
+}
+
+@plugin "daisyui/theme" {
+  name: 'ligtas';
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f3f7fe;
+  --color-base-300: #dce8fa;
+  --color-base-content: #061e47;
+  --color-primary: #2b6ad0;
+  --color-primary-content: #ffffff;
+  --color-secondary: #1f4591;
+  --color-secondary-content: #ffffff;
+  --color-accent: #68a4f1;
+  --color-accent-content: #061e47;
+  --color-neutral: #061e47;
+  --color-neutral-content: #ffffff;
+  --color-info: #2b6ad0;
+  --color-info-content: #ffffff;
+  --color-success: #17784a;
+  --color-success-content: #ffffff;
+  --color-warning: #f4b740;
+  --color-warning-content: #3d2600;
+  --color-error: #c0262d;
+  --color-error-content: #ffffff;
+  --radius-selector: 2rem;
+  --radius-field: 0.875rem;
+  --radius-box: 1.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.3rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
 
 @theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   --color-navy: #1f4591;
   --color-royal: #2b6ad0;
   --color-cornflower: #68a4f1;
   --color-ink: #061e47;
+  --color-pale: #eef4fd;
+  --color-mist: #dce8fa;
+  --color-canvas: #f6f9ff;
+  --color-caution: #fff3d6;
+  --color-caution-ink: #6b4200;
+  --shadow-card: 0 1px 2px rgb(6 30 71 / 0.05), 0 10px 28px -14px rgb(31 69 145 / 0.28);
+  --shadow-sheet: 0 -8px 40px -12px rgb(6 30 71 / 0.28);
+  --animate-sheet-up: sheet-up 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-drop-in: drop-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes sheet-up {
+    from {
+      transform: translateY(24px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes drop-in {
+    from {
+      transform: translateY(-16px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background-color: var(--color-pale);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-royal);
+    outline-offset: 2px;
+  }
+  .on-dark :where(a, button, input, select, [tabindex]):focus-visible {
+    outline-color: #ffffff;
+  }
+  h1:focus {
+    outline: none;
+  }
+}
+
+@layer components {
+  /* Leaflet custom markers */
+  .pasada-pin {
+    background: transparent;
+    border: 0;
+  }
+  .pasada-pin .pin {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px 999px 999px 4px;
+    transform: rotate(-45deg);
+    border: 2px solid #ffffff;
+    box-shadow: 0 4px 10px -2px rgb(6 30 71 / 0.45);
+    transition: transform 0.15s ease;
+  }
+  .pasada-pin .pin svg {
+    transform: rotate(45deg);
+  }
+  .pasada-pin .pin.public {
+    background: var(--color-royal);
+    color: #ffffff;
+  }
+  .pasada-pin .pin.private {
+    background: #ffffff;
+    color: var(--color-royal);
+    border-color: var(--color-royal);
+  }
+  .pasada-pin .pin.is-selected {
+    background: var(--color-navy);
+    color: #ffffff;
+    border-color: #ffffff;
+    outline: 4px solid rgb(104 164 241 / 0.55);
+    transform: rotate(-45deg) scale(1.22);
+  }
+  .pasada-pin .pin.assist {
+    background: #ffffff;
+    color: var(--color-navy);
+    border-color: var(--color-navy);
+    border-radius: 999px 999px 999px 4px;
+  }
+  .pasada-pin .pin.assist.is-selected {
+    background: var(--color-navy);
+    color: #ffffff;
+    border-color: #ffffff;
+  }
+  /* Spotlight tour: subtle emphasis on the current topic; surrounding UI stays visible. */
+  .guide-target {
+    transition: box-shadow 0.25s ease, outline-color 0.25s ease;
+    outline: 3px solid transparent;
+    outline-offset: 4px;
+  }
+  .guide-target[data-tour-active='true'] {
+    outline-color: var(--color-cornflower);
+    box-shadow: 0 0 0 8px rgb(104 164 241 / 0.18), 0 18px 40px -18px rgb(31 69 145 / 0.45);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .guide-target {
+      transition: none;
+    }
+  }
+  .pasada-hotspot {
+    background: transparent;
+    border: 0;
+  }
+  .pasada-hotspot .spot {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 13px;
+    border: 3px solid #ffffff;
+    box-shadow: 0 6px 16px -4px rgb(6 30 71 / 0.45);
+  }
+  .pasada-hotspot .spot.is-selected {
+    outline: 4px solid rgb(6 30 71 / 0.85);
+    outline-offset: 2px;
+  }
+  .pasada-user {
+    background: transparent;
+    border: 0;
+  }
+  .pasada-user span {
+    display: block;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--color-royal);
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 6px rgb(43 106 208 / 0.25);
+  }
+  .leaflet-container {
+    font-family: var(--font-sans);
+    background: #e8eef8;
+  }
+  .leaflet-marker-icon:focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
