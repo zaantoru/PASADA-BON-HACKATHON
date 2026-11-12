@@ -1,10 +1,13 @@
+import { BrowserRouter, Routes, Route } from "react-router";
+import Login from "./pages/Auth/Login";
+
 function App() {
   return (
-    <div>
-      <h1 className="text-3xl font-bold underline">
-    Hello world!
-  </h1>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login/>} />
+      </Routes>
+  </BrowserRouter>
   )
 }
 

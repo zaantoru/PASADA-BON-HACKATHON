@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+@theme {
+  --color-navy: #1f4591;
+  --color-royal: #2b6ad0;
+  --color-cornflower: #68a4f1;
+  --color-ink: #061e47;
+}
